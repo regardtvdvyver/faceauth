@@ -63,11 +63,13 @@ class FaceDetector:
             face_img = frame[y1:y2, x1:x2].copy()
 
             confidence = detection.score[0]
-            faces.append(FaceDetection(
-                bbox=(x, y, bw, bh),
-                confidence=confidence,
-                face_img=face_img,
-            ))
+            faces.append(
+                FaceDetection(
+                    bbox=(x, y, bw, bh),
+                    confidence=confidence,
+                    face_img=face_img,
+                )
+            )
 
         # Sort by confidence descending
         faces.sort(key=lambda f: f.confidence, reverse=True)

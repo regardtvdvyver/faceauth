@@ -210,38 +210,28 @@ def test_overwrite_existing_enrollment(tmp_path):
 
 @pytest.mark.unit
 def test_path_traversal_prevention_forward_slash(tmp_path):
-    """Test that forward slashes in username are sanitized."""
+    """Test that path traversal attempts raise ValueError."""
     store = EmbeddingStore(data_dir=tmp_path)
     username = "../../../etc/passwd"
 
     embedding = create_embedding(seed=99)
-    saved_path = store.save(username, [embedding])
 
-    # Path should be sanitized and inside data_dir
-    assert saved_path.parent == tmp_path
-    assert saved_path.name == "______etc_passwd.npz"
-
-    # Should be able to load it back
-    loaded = store.load(username)
-    assert len(loaded) == 1
+    # Should raise ValueError due to invalid username format
+    with pytest.raises(ValueError, match="Invalid username"):
+        store.save(username, [embedding])
 
 
 @pytest.mark.unit
 def test_path_traversal_prevention_null_bytes(tmp_path):
-    """Test that null bytes in username are sanitized."""
+    """Test that null bytes in username raise ValueError."""
     store = EmbeddingStore(data_dir=tmp_path)
     username = "user\0name"
 
     embedding = create_embedding(seed=88)
-    saved_path = store.save(username, [embedding])
 
-    # Null bytes should be replaced
-    assert "\0" not in str(saved_path)
-    assert saved_path.parent == tmp_path
-
-    # Should be able to load it back
-    loaded = store.load(username)
-    assert len(loaded) == 1
+    # Should raise ValueError due to invalid username format
+    with pytest.raises(ValueError, match="Invalid username"):
+        store.save(username, [embedding])
 
 
 @pytest.mark.unit

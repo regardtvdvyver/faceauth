@@ -17,7 +17,6 @@ Response format:
 
 import json
 from dataclasses import asdict, dataclass, field
-from typing import Any
 
 
 @dataclass
@@ -55,7 +54,7 @@ class Response:
         d = {"ok": self.ok}
         if self.error:
             d["error"] = self.error
-        if self.score:
+        if self.score != 0.0:
             d["score"] = round(self.score, 4)
         if self.data:
             d.update(self.data)

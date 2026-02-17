@@ -53,7 +53,7 @@ def test_is_ir_frame_normal_colour_bgr():
     """Normal colour BGR frame should not be detected as IR."""
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
     frame[:, :, 0] = 200  # B
-    frame[:, :, 1] = 50   # G
+    frame[:, :, 1] = 50  # G
     frame[:, :, 2] = 100  # R
     assert not is_ir_frame(frame)
 
@@ -113,6 +113,7 @@ def test_ir_to_rgb_preserves_dtype():
 def mock_cap():
     """Configure a mock VideoCapture on the autouse-mocked cv2."""
     import faceauth.camera
+
     cap = MagicMock()
     cap.isOpened.return_value = True
     faceauth.camera.cv2.VideoCapture.return_value = cap
@@ -123,6 +124,7 @@ def mock_cap():
 def test_camera_open_parses_dev_video(mock_cap):
     """open() parses /dev/video2 to integer index 2."""
     import faceauth.camera
+
     cam = Camera("/dev/video2", 640, 480)
     cam.open()
 
@@ -223,6 +225,7 @@ def test_camera_open_warms_up_camera(mock_cap):
 def test_camera_open_with_non_dev_path(mock_cap):
     """open() handles non /dev/video paths as string."""
     import faceauth.camera
+
     cam = Camera("0")
     cam.open()
     faceauth.camera.cv2.VideoCapture.assert_called_once_with("0")

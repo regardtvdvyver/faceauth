@@ -16,7 +16,7 @@ class CameraConfig:
     rgb_device: str = "/dev/video0"
     capture_timeout: int = 10
     width: int = 640
-    height: int = 480
+    height: int = 360
 
 
 @dataclass
@@ -34,6 +34,7 @@ class AntispoofConfig:
     minifasnet_threshold: float = 0.8
     require_both: bool = True
     ir_only_fallback: bool = True  # Use IR-only if MiniFASNet model not downloaded
+    minifasnet_model_path: str = ""  # Empty = auto-detect based on mode
 
 
 @dataclass
@@ -42,7 +43,7 @@ class DaemonConfig:
     system_socket_path: str = "/run/faceauth/faceauth.sock"
     system_mode: bool = False
     log_level: str = "info"
-    log_file: str = "/tmp/faceauth.log"
+    log_file: str = ""  # Empty = log to stderr/journal only
 
 
 @dataclass
@@ -63,8 +64,18 @@ class Config:
     def config_dir(self) -> Path:
         if os.geteuid() == 0:
             return Path("/etc/faceauth")
+        return Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "faceauth"
+
+    @property
+    def antispoof_model_path(self) -> Path:
+        """MiniFASNet model path. Auto-detects based on run mode."""
+        if self.antispoof.minifasnet_model_path:
+            return Path(self.antispoof.minifasnet_model_path)
+        if os.geteuid() == 0:
+            return Path("/var/lib/faceauth/models/antispoof_minifasnet.onnx")
         return (
-            Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "faceauth"
+            Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
+            / "faceauth/models/antispoof_minifasnet.onnx"
         )
 
 

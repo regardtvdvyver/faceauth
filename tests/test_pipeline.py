@@ -186,9 +186,7 @@ class TestMatchEmbedding:
         assert score < 0.5
 
     def test_best_of_multiple(self, sample_embedding, similar_embedding, different_embedding):
-        score = match_embedding(
-            sample_embedding, [different_embedding, similar_embedding]
-        )
+        score = match_embedding(sample_embedding, [different_embedding, similar_embedding])
         # Should pick the best score (similar_embedding)
         expected = FaceRecognizer.compute_similarity(sample_embedding, similar_embedding)
         assert score == pytest.approx(expected, abs=0.001)

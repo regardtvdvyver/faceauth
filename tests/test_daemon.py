@@ -8,7 +8,6 @@ Uses a temporary directory for socket and embedding storage.
 import asyncio
 import json
 import os
-from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
@@ -63,14 +62,18 @@ async def daemon_instance(daemon_config, tmp_socket, tmp_path):
     daemon = FaceAuthDaemon(config=daemon_config)
     daemon.store = EmbeddingStore(data_dir=tmp_path / "embeddings")
 
-    await daemon.start(socket_path=tmp_socket)
-    yield daemon
-    await daemon.stop()
+    # Patch _get_peer_uid to return 0 (root) to bypass SO_PEERCRED authorization in tests
+    # This allows tests to enroll/delete arbitrary usernames without system user validation
+    with patch("faceauth.daemon.FaceAuthDaemon._get_peer_uid", return_value=0):
+        await daemon.start(socket_path=tmp_socket)
+        yield daemon
+        await daemon.stop()
 
 
 @pytest.fixture
 async def send_recv(tmp_socket):
     """Async helper to send a Request and receive a Response via socket."""
+
     async def _send_recv(req: Request) -> Response:
         reader, writer = await asyncio.open_unix_connection(str(tmp_socket))
         try:
@@ -89,6 +92,7 @@ async def send_recv(tmp_socket):
 # ============================================================================
 # Status and List Tests
 # ============================================================================
+
 
 @pytest.mark.integration
 async def test_status_response(daemon_instance, send_recv):
@@ -139,6 +143,7 @@ async def test_list_with_users(daemon_instance, send_recv, sample_embedding, sim
 # Delete Tests
 # ============================================================================
 
+
 @pytest.mark.integration
 async def test_delete_enrolled_user(daemon_instance, send_recv, sample_embedding):
     """Pre-populate store, delete user, verify ok=True."""
@@ -176,6 +181,7 @@ async def test_delete_missing_username(daemon_instance, send_recv):
 # Error Handling Tests
 # ============================================================================
 
+
 @pytest.mark.integration
 async def test_unknown_action(daemon_instance, send_recv):
     """Send unknown action, verify ok=False with error."""
@@ -199,7 +205,7 @@ async def test_invalid_json_request(daemon_instance, tmp_socket):
         resp = Response.from_json(data)
 
         assert resp.ok is False
-        assert "Invalid request" in resp.error
+        assert "invalid request" in resp.error
     finally:
         writer.close()
         await writer.wait_closed()
@@ -208,6 +214,7 @@ async def test_invalid_json_request(daemon_instance, tmp_socket):
 # ============================================================================
 # Verify Tests - Parameter Validation
 # ============================================================================
+
 
 @pytest.mark.integration
 async def test_verify_missing_username(daemon_instance, send_recv):
@@ -233,6 +240,7 @@ async def test_verify_user_not_enrolled(daemon_instance, send_recv):
 # Enroll Tests - Parameter Validation
 # ============================================================================
 
+
 @pytest.mark.integration
 async def test_enroll_missing_username(daemon_instance, send_recv):
     """Enroll without username, verify ok=False."""
@@ -246,6 +254,7 @@ async def test_enroll_missing_username(daemon_instance, send_recv):
 # ============================================================================
 # Verify Tests - With Mocked Camera/FaceRecognizer
 # ============================================================================
+
 
 @pytest.mark.integration
 async def test_verify_successful_match(
@@ -322,6 +331,7 @@ async def test_verify_no_match(
 # Enroll Tests - With Mocked Camera/FaceRecognizer
 # ============================================================================
 
+
 @pytest.mark.integration
 async def test_enroll_successful(
     daemon_instance, send_recv, sample_embedding, similar_embedding, grey_frame
@@ -340,11 +350,13 @@ async def test_enroll_successful(
 
     # Mock FaceRecognizer - inject directly into daemon
     mock_recognizer = MagicMock()
-    mock_recognizer.get_faces = MagicMock(side_effect=[
-        [mock_face1],
-        [mock_face2],
-        [mock_face1],  # Extra calls in case samples > 2
-    ])
+    mock_recognizer.get_faces = MagicMock(
+        side_effect=[
+            [mock_face1],
+            [mock_face2],
+            [mock_face1],  # Extra calls in case samples > 2
+        ]
+    )
     mock_recognizer._ensure_loaded = MagicMock()
     daemon_instance.recognizer = mock_recognizer
 
@@ -394,6 +406,7 @@ async def test_enroll_no_face_detected(daemon_instance, send_recv, grey_frame):
 # ============================================================================
 # Connection Handling Tests
 # ============================================================================
+
 
 @pytest.mark.integration
 async def test_client_disconnect_doesnt_crash(daemon_instance, tmp_socket):
@@ -460,6 +473,7 @@ async def test_client_timeout_handling(daemon_instance, tmp_socket):
 # Model Loading Tests
 # ============================================================================
 
+
 @pytest.mark.integration
 async def test_models_lazy_loaded(daemon_config, tmp_socket, tmp_path, send_recv, sample_embedding):
     """Models are not loaded until first verify/enroll request."""
@@ -478,8 +492,6 @@ async def test_models_lazy_loaded(daemon_config, tmp_socket, tmp_path, send_recv
         # Initially, models should not be loaded
         # Note: daemon.start() calls run_in_executor for _ensure_models, so we need to wait a bit
         # But if we check immediately, they shouldn't be loaded yet
-        initial_loaded = resp.data["models_loaded"]
-
         # Pre-populate store so verify attempt proceeds to model loading
         daemon.store.save("testuser", [sample_embedding])
 
@@ -502,6 +514,7 @@ async def test_models_lazy_loaded(daemon_config, tmp_socket, tmp_path, send_recv
 # ============================================================================
 # Protocol Format Tests
 # ============================================================================
+
 
 @pytest.mark.integration
 async def test_response_format_contains_newline(daemon_instance, tmp_socket):
@@ -551,14 +564,15 @@ async def test_request_without_newline_timeout(daemon_instance, tmp_socket):
 # Edge Cases
 # ============================================================================
 
+
 @pytest.mark.integration
 async def test_verify_with_custom_threshold(
     daemon_instance, send_recv, sample_embedding, similar_embedding, grey_frame
 ):
-    """Verify request can override default threshold."""
+    """Verify that daemon ignores client-side threshold and uses server config."""
     daemon_instance.store.save("alice", [sample_embedding])
 
-    # Mock Face with similarity that's between default and custom threshold
+    # Mock Face with similarity above server threshold (0.45) but below what client requests
     mock_face = Mock()
     mock_face.det_score = 0.95
     mock_face.embedding = similar_embedding
@@ -576,17 +590,18 @@ async def test_verify_with_custom_threshold(
     mock_camera.read = MagicMock(return_value=grey_frame)
 
     with patch("faceauth.daemon.Camera", return_value=mock_camera):
-        # Use very high threshold (should fail)
+        # Client requests high threshold (0.99), but daemon uses server config (0.45)
+        # Since similarity is above 0.45, verification should succeed
         req = Request(action="verify", username="alice", threshold=0.99)
         resp = await send_recv(req)
 
-        assert resp.ok is False
+        # Daemon ignores client threshold, uses server threshold (0.45), so should pass
+        assert resp.ok is True
+        assert resp.score > 0.45
 
 
 @pytest.mark.integration
-async def test_enroll_custom_sample_count(
-    daemon_instance, send_recv, sample_embedding, grey_frame
-):
+async def test_enroll_custom_sample_count(daemon_instance, send_recv, sample_embedding, grey_frame):
     """Enroll request can specify custom sample count."""
     mock_face = Mock()
     mock_face.det_score = 0.95

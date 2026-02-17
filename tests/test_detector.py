@@ -203,7 +203,8 @@ def test_custom_min_confidence(mock_mediapipe):
     mock_mp, _ = mock_mediapipe
     FaceDetector(min_confidence=0.75)
     mock_mp.solutions.face_detection.FaceDetection.assert_called_once_with(
-        model_selection=1, min_detection_confidence=0.75,
+        model_selection=1,
+        min_detection_confidence=0.75,
     )
 
 

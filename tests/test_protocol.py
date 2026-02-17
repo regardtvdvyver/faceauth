@@ -385,8 +385,8 @@ def test_response_newline_termination():
 
     for resp in responses:
         data = resp.to_json()
-        assert data.endswith(b"\n"), f"Response missing newline"
-        assert data.count(b"\n") == 1, f"Response has multiple newlines"
+        assert data.endswith(b"\n"), "Response missing newline"
+        assert data.count(b"\n") == 1, "Response has multiple newlines"
 
 
 @pytest.mark.unit

@@ -74,22 +74,22 @@ class FaceAuthDaemon:
 
         if self.antispoof is None and self.config.antispoof.enabled:
             self.antispoof = make_antispoof(self.config)
-            fas_status = "available" if self.antispoof.minifasnet_available else "not found (IR-only)"
+            fas_status = (
+                "available" if self.antispoof.minifasnet_available else "not found (IR-only)"
+            )
             log.info("Anti-spoof enabled (MiniFASNet: %s)", fas_status)
 
     @staticmethod
     def _get_peer_uid(writer: asyncio.StreamWriter) -> int | None:
         """Get the UID of the connecting process via SO_PEERCRED (Linux only)."""
         try:
-            sock = writer.get_extra_info('socket')
+            sock = writer.get_extra_info("socket")
             if sock is None:
                 return None
             creds = sock.getsockopt(
-                socket_module.SOL_SOCKET,
-                socket_module.SO_PEERCRED,
-                struct.calcsize('3i')
+                socket_module.SOL_SOCKET, socket_module.SO_PEERCRED, struct.calcsize("3i")
             )
-            _pid, uid, _gid = struct.unpack('3i', creds)
+            _pid, uid, _gid = struct.unpack("3i", creds)
             return uid
         except (OSError, AttributeError, struct.error):
             return None
@@ -115,7 +115,9 @@ class FaceAuthDaemon:
                 await writer.drain()
                 return
 
-            log.info("Request: action=%s username=%s peer_uid=%s", req.action, req.username, peer_uid)
+            log.info(
+                "Request: action=%s username=%s peer_uid=%s", req.action, req.username, peer_uid
+            )
             resp = await self._dispatch(req, peer_uid=peer_uid)
 
             writer.write(resp.to_json())
@@ -148,13 +150,17 @@ class FaceAuthDaemon:
             if peer_uid != 0:
                 try:
                     import pwd
+
                     target_uid = pwd.getpwnam(req.username).pw_uid
                 except KeyError:
                     return Response(ok=False, error="unknown user")
                 if peer_uid != target_uid:
                     log.warning(
                         "Authorization denied: uid=%d tried to %s user '%s' (uid=%d)",
-                        peer_uid, req.action, req.username, target_uid,
+                        peer_uid,
+                        req.action,
+                        req.username,
+                        target_uid,
                     )
                     return Response(ok=False, error="permission denied")
 
@@ -342,9 +348,7 @@ class FaceAuthDaemon:
         # Ensure parent directory exists
         sock.parent.mkdir(parents=True, exist_ok=True)
 
-        self._server = await asyncio.start_unix_server(
-            self.handle_client, path=str(sock)
-        )
+        self._server = await asyncio.start_unix_server(self.handle_client, path=str(sock))
 
         # System mode: 0o666 so any local user can connect
         # User mode: 0o600 restricted to owning user only

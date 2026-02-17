@@ -17,6 +17,7 @@ log = logging.getLogger(__name__)
 def _default_model_path() -> Path:
     """Compute model path at runtime (not import time) based on effective UID."""
     import os
+
     if os.geteuid() == 0:
         return Path("/var/lib/faceauth/models/antispoof_minifasnet.onnx")
     xdg = os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")
@@ -115,6 +116,7 @@ class MiniFASNetChecker:
         import onnxruntime as ort
 
         from .providers import get_ort_providers
+
         providers = get_ort_providers()
         log.info("Loading MiniFASNet model from %s (providers=%s)", self.model_path, providers)
         try:

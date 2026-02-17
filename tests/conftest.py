@@ -29,6 +29,7 @@ def _mock_cv2_resize(img, size):
     w, h = size
     # Simple nearest-neighbour resize
     from numpy import linspace
+
     rows = np.round(linspace(0, img.shape[0] - 1, h)).astype(int)
     cols = np.round(linspace(0, img.shape[1] - 1, w)).astype(int)
     return img[np.ix_(rows, cols)] if len(img.shape) == 2 else img[np.ix_(rows, cols)]
@@ -54,6 +55,7 @@ def _patch_cv2(monkeypatch):
     mock_cv2 = make_mock_cv2()
     import faceauth.camera
     import faceauth.detector
+
     monkeypatch.setattr(faceauth.camera, "cv2", mock_cv2)
     monkeypatch.setattr(faceauth.detector, "cv2", mock_cv2)
 

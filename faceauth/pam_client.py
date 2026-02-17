@@ -4,7 +4,6 @@ Used by both the PAM module and CLI to send requests to the daemon
 over Unix socket.
 """
 
-import json
 import logging
 import os
 import socket

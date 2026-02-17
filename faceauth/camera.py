@@ -6,8 +6,6 @@ import time
 import cv2
 import numpy as np
 
-from .config import CameraConfig
-
 log = logging.getLogger(__name__)
 
 
@@ -87,8 +85,7 @@ def capture_frames(
         while len(frames) < count:
             if time.monotonic() > deadline:
                 raise TimeoutError(
-                    f"Camera capture timed out after {timeout}s "
-                    f"({len(frames)}/{count} frames)"
+                    f"Camera capture timed out after {timeout}s ({len(frames)}/{count} frames)"
                 )
             try:
                 frame = cam.read()

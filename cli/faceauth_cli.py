@@ -117,9 +117,7 @@ def enroll(ctx, username, samples, camera_device):
         sys.exit(1)
 
     if len(embeddings) < samples:
-        click.echo(
-            f"Warning: only captured {len(embeddings)}/{samples} samples", err=True
-        )
+        click.echo(f"Warning: only captured {len(embeddings)}/{samples} samples", err=True)
 
     if len(embeddings) > 1:
         avg_score, min_score = compute_self_consistency(embeddings)
@@ -428,13 +426,16 @@ def daemon_start(ctx, foreground):
     """Start the faceauth daemon."""
     if foreground:
         from faceauth.daemon import run_daemon
+
         click.echo("Starting daemon in foreground (Ctrl+C to stop)...")
         run_daemon()
     else:
         import subprocess
+
         result = subprocess.run(
             ["systemctl", "--user", "start", "faceauth"],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         if result.returncode == 0:
             click.echo("Daemon started via systemd")
@@ -448,9 +449,11 @@ def daemon_start(ctx, foreground):
 def daemon_stop():
     """Stop the faceauth daemon."""
     import subprocess
+
     result = subprocess.run(
         ["systemctl", "--user", "stop", "faceauth"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if result.returncode == 0:
         click.echo("Daemon stopped")
@@ -464,7 +467,7 @@ def daemon_status_cmd():
     """Show daemon status."""
     ds = daemon_status()
     if ds:
-        click.echo(f"Daemon: RUNNING")
+        click.echo("Daemon: RUNNING")
         click.echo(f"  PID: {ds.get('pid', '?')}")
         click.echo(f"  Socket: {ds.get('socket', '?')}")
         click.echo(f"  Models loaded: {ds.get('models_loaded', False)}")
@@ -478,7 +481,6 @@ def daemon_status_cmd():
 @click.option("--system", is_flag=True, help="Install system-level service (requires root)")
 def daemon_install(system):
     """Install the systemd service file."""
-    import shutil
     from pathlib import Path
 
     if system:
@@ -505,6 +507,7 @@ def daemon_install(system):
         click.echo(f"  Python: {python_path}")
 
         import subprocess
+
         subprocess.run(["systemctl", "daemon-reload"], check=False)
         click.echo("Run 'sudo systemctl start faceauth' to start the daemon")
         click.echo("Run 'sudo systemctl enable faceauth' to start on boot")
@@ -528,6 +531,7 @@ def daemon_install(system):
         click.echo(f"  Python: {python_path}")
 
         import subprocess
+
         subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
         click.echo("Run 'faceauth daemon start' to start the daemon")
         click.echo("Run 'systemctl --user enable faceauth' to start on login")
@@ -579,8 +583,6 @@ def install_pam():
 @click.pass_context
 def setup_models(ctx):
     """Download required ML models."""
-    from pathlib import Path
-
     click.echo("Setting up faceauth models...")
     click.echo()
 
@@ -592,6 +594,7 @@ def setup_models(ctx):
     click.echo("  Auto-downloads on first use. Triggering load...")
     try:
         from faceauth.recognizer import FaceRecognizer
+
         cfg = ctx.obj["config"]
         recognizer = FaceRecognizer(model_name=cfg.recognition.model)
         recognizer.ensure_loaded()
@@ -604,6 +607,7 @@ def setup_models(ctx):
     click.echo()
     click.echo("[2/2] MiniFASNet anti-spoof (optional):")
     from faceauth.antispoof import _default_model_path
+
     model_path = _default_model_path()
     if model_path.exists():
         click.echo(f"  OK - already at {model_path}")
@@ -630,13 +634,12 @@ def migrate_to_system(force):
     sudo_user = os.environ.get("SUDO_USER")
     if sudo_user:
         import pwd
+
         user_home = Path(pwd.getpwnam(sudo_user).pw_dir)
     else:
         user_home = Path.home()
 
-    user_dir = Path(
-        os.environ.get("XDG_DATA_HOME", user_home / ".local/share")
-    ) / "faceauth"
+    user_dir = Path(os.environ.get("XDG_DATA_HOME", user_home / ".local/share")) / "faceauth"
     system_dir = Path("/var/lib/faceauth")
 
     if not user_dir.exists():

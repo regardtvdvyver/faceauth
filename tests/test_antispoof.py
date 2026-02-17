@@ -8,7 +8,6 @@ Tests cover:
 
 import numpy as np
 import pytest
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from faceauth.antispoof import (
@@ -62,7 +61,12 @@ def test_ir_brightness_bgr_extracts_first_channel(ir_bgr_frame, sample_bbox):
     """Test that BGR IR frame correctly extracts first channel."""
     # ir_bgr_frame has all channels equal, filled with random values
     # Extract the face region to get expected brightness
-    x1, y1, x2, y2 = int(sample_bbox[0]), int(sample_bbox[1]), int(sample_bbox[2]), int(sample_bbox[3])
+    x1, y1, x2, y2 = (
+        int(sample_bbox[0]),
+        int(sample_bbox[1]),
+        int(sample_bbox[2]),
+        int(sample_bbox[3]),
+    )
     expected_brightness = float(np.mean(ir_bgr_frame[y1:y2, x1:x2, 0]))
 
     checker = IRBrightnessChecker(brightness_min=15.0)
@@ -138,7 +142,9 @@ def test_minifasnet_high_liveness_score_passes(bgr_frame, sample_bbox, tmp_path)
     mock_session.run.return_value = [np.array([[0.1, 2.0]], dtype=np.float32)]
 
     with patch("onnxruntime.InferenceSession", return_value=mock_session):
-        with patch("cv2.resize", return_value=np.zeros((128, 128, 3), dtype=np.float32), create=True):
+        with patch(
+            "cv2.resize", return_value=np.zeros((128, 128, 3), dtype=np.float32), create=True
+        ):
             checker = MiniFASNetChecker(model_path=model_path, threshold=0.8)
             passed, score = checker.check(bgr_frame, sample_bbox)
 
@@ -162,7 +168,9 @@ def test_minifasnet_low_liveness_score_fails(bgr_frame, sample_bbox, tmp_path):
     mock_session.run.return_value = [np.array([[2.0, 0.1]], dtype=np.float32)]
 
     with patch("onnxruntime.InferenceSession", return_value=mock_session):
-        with patch("cv2.resize", return_value=np.zeros((128, 128, 3), dtype=np.float32), create=True):
+        with patch(
+            "cv2.resize", return_value=np.zeros((128, 128, 3), dtype=np.float32), create=True
+        ):
             checker = MiniFASNetChecker(model_path=model_path, threshold=0.8)
             passed, score = checker.check(bgr_frame, sample_bbox)
 
@@ -208,7 +216,9 @@ def test_antispoof_both_pass_require_both_true(bright_ir_frame, bgr_frame, sampl
     mock_session.run.return_value = [np.array([[0.1, 2.0]], dtype=np.float32)]  # High liveness
 
     with patch("onnxruntime.InferenceSession", return_value=mock_session):
-        with patch("cv2.resize", return_value=np.zeros((128, 128, 3), dtype=np.float32), create=True):
+        with patch(
+            "cv2.resize", return_value=np.zeros((128, 128, 3), dtype=np.float32), create=True
+        ):
             checker = AntispoofChecker(
                 ir_brightness_min=15.0,
                 minifasnet_threshold=0.8,
@@ -223,7 +233,9 @@ def test_antispoof_both_pass_require_both_true(bright_ir_frame, bgr_frame, sampl
 
 
 @pytest.mark.unit
-def test_antispoof_ir_pass_liveness_fail_require_both_true(bright_ir_frame, bgr_frame, sample_bbox, tmp_path):
+def test_antispoof_ir_pass_liveness_fail_require_both_true(
+    bright_ir_frame, bgr_frame, sample_bbox, tmp_path
+):
     """Test IR pass + liveness fail with require_both=True results in passed=False."""
     model_path = tmp_path / "test_model.onnx"
     model_path.touch()
@@ -235,7 +247,9 @@ def test_antispoof_ir_pass_liveness_fail_require_both_true(bright_ir_frame, bgr_
     mock_session.run.return_value = [np.array([[2.0, 0.1]], dtype=np.float32)]  # Low liveness
 
     with patch("onnxruntime.InferenceSession", return_value=mock_session):
-        with patch("cv2.resize", return_value=np.zeros((128, 128, 3), dtype=np.float32), create=True):
+        with patch(
+            "cv2.resize", return_value=np.zeros((128, 128, 3), dtype=np.float32), create=True
+        ):
             checker = AntispoofChecker(
                 ir_brightness_min=15.0,
                 minifasnet_threshold=0.8,
@@ -250,7 +264,9 @@ def test_antispoof_ir_pass_liveness_fail_require_both_true(bright_ir_frame, bgr_
 
 
 @pytest.mark.unit
-def test_antispoof_ir_fail_liveness_pass_require_both_true(dark_ir_frame, bgr_frame, sample_bbox, tmp_path):
+def test_antispoof_ir_fail_liveness_pass_require_both_true(
+    dark_ir_frame, bgr_frame, sample_bbox, tmp_path
+):
     """Test IR fail + liveness pass with require_both=True results in passed=False."""
     model_path = tmp_path / "test_model.onnx"
     model_path.touch()
@@ -262,7 +278,9 @@ def test_antispoof_ir_fail_liveness_pass_require_both_true(dark_ir_frame, bgr_fr
     mock_session.run.return_value = [np.array([[0.1, 2.0]], dtype=np.float32)]  # High liveness
 
     with patch("onnxruntime.InferenceSession", return_value=mock_session):
-        with patch("cv2.resize", return_value=np.zeros((128, 128, 3), dtype=np.float32), create=True):
+        with patch(
+            "cv2.resize", return_value=np.zeros((128, 128, 3), dtype=np.float32), create=True
+        ):
             checker = AntispoofChecker(
                 ir_brightness_min=15.0,
                 minifasnet_threshold=0.8,
@@ -277,7 +295,9 @@ def test_antispoof_ir_fail_liveness_pass_require_both_true(dark_ir_frame, bgr_fr
 
 
 @pytest.mark.unit
-def test_antispoof_ir_pass_liveness_fail_require_both_false(bright_ir_frame, bgr_frame, sample_bbox, tmp_path):
+def test_antispoof_ir_pass_liveness_fail_require_both_false(
+    bright_ir_frame, bgr_frame, sample_bbox, tmp_path
+):
     """Test IR pass + liveness fail with require_both=False uses OR logic (passed=True)."""
     model_path = tmp_path / "test_model.onnx"
     model_path.touch()
@@ -289,7 +309,9 @@ def test_antispoof_ir_pass_liveness_fail_require_both_false(bright_ir_frame, bgr
     mock_session.run.return_value = [np.array([[2.0, 0.1]], dtype=np.float32)]  # Low liveness
 
     with patch("onnxruntime.InferenceSession", return_value=mock_session):
-        with patch("cv2.resize", return_value=np.zeros((128, 128, 3), dtype=np.float32), create=True):
+        with patch(
+            "cv2.resize", return_value=np.zeros((128, 128, 3), dtype=np.float32), create=True
+        ):
             checker = AntispoofChecker(
                 ir_brightness_min=15.0,
                 minifasnet_threshold=0.8,
@@ -304,7 +326,9 @@ def test_antispoof_ir_pass_liveness_fail_require_both_false(bright_ir_frame, bgr
 
 
 @pytest.mark.unit
-def test_antispoof_minifasnet_unavailable_ir_fallback_pass(bright_ir_frame, bgr_frame, sample_bbox, tmp_path):
+def test_antispoof_minifasnet_unavailable_ir_fallback_pass(
+    bright_ir_frame, bgr_frame, sample_bbox, tmp_path
+):
     """Test MiniFASNet unavailable + ir_only_fallback=True with IR pass results in passed=True."""
     non_existent_path = tmp_path / "nonexistent.onnx"
 
@@ -321,7 +345,9 @@ def test_antispoof_minifasnet_unavailable_ir_fallback_pass(bright_ir_frame, bgr_
 
 
 @pytest.mark.unit
-def test_antispoof_minifasnet_unavailable_ir_fallback_fail(dark_ir_frame, bgr_frame, sample_bbox, tmp_path):
+def test_antispoof_minifasnet_unavailable_ir_fallback_fail(
+    dark_ir_frame, bgr_frame, sample_bbox, tmp_path
+):
     """Test MiniFASNet unavailable + ir_only_fallback=True with IR fail results in passed=False."""
     non_existent_path = tmp_path / "nonexistent.onnx"
 
@@ -337,7 +363,9 @@ def test_antispoof_minifasnet_unavailable_ir_fallback_fail(dark_ir_frame, bgr_fr
 
 
 @pytest.mark.unit
-def test_antispoof_minifasnet_unavailable_no_fallback_fails(bright_ir_frame, bgr_frame, sample_bbox, tmp_path):
+def test_antispoof_minifasnet_unavailable_no_fallback_fails(
+    bright_ir_frame, bgr_frame, sample_bbox, tmp_path
+):
     """Test MiniFASNet unavailable + ir_only_fallback=False results in passed=False with reason."""
     non_existent_path = tmp_path / "nonexistent.onnx"
 
@@ -366,7 +394,9 @@ def test_antispoof_failure_reason_includes_details(dark_ir_frame, bgr_frame, sam
     mock_session.run.return_value = [np.array([[2.0, 0.1]], dtype=np.float32)]  # Low liveness
 
     with patch("onnxruntime.InferenceSession", return_value=mock_session):
-        with patch("cv2.resize", return_value=np.zeros((128, 128, 3), dtype=np.float32), create=True):
+        with patch(
+            "cv2.resize", return_value=np.zeros((128, 128, 3), dtype=np.float32), create=True
+        ):
             checker = AntispoofChecker(
                 ir_brightness_min=15.0,
                 minifasnet_threshold=0.8,
@@ -436,7 +466,9 @@ def test_ir_brightness_bbox_boundary_clamping(bright_ir_frame):
 
 
 @pytest.mark.unit
-def test_antispoof_both_checks_fail_reason_combines(dark_ir_frame, bgr_frame, sample_bbox, tmp_path):
+def test_antispoof_both_checks_fail_reason_combines(
+    dark_ir_frame, bgr_frame, sample_bbox, tmp_path
+):
     """Test that when both checks fail, reason combines both failures."""
     model_path = tmp_path / "test_model.onnx"
     model_path.touch()
@@ -448,7 +480,9 @@ def test_antispoof_both_checks_fail_reason_combines(dark_ir_frame, bgr_frame, sa
     mock_session.run.return_value = [np.array([[2.0, 0.1]], dtype=np.float32)]  # Low liveness
 
     with patch("onnxruntime.InferenceSession", return_value=mock_session):
-        with patch("cv2.resize", return_value=np.zeros((128, 128, 3), dtype=np.float32), create=True):
+        with patch(
+            "cv2.resize", return_value=np.zeros((128, 128, 3), dtype=np.float32), create=True
+        ):
             checker = AntispoofChecker(
                 ir_brightness_min=15.0,
                 minifasnet_threshold=0.8,
@@ -482,7 +516,9 @@ def test_minifasnet_model_loads_lazily(bgr_frame, sample_bbox, tmp_path):
     mock_session.run.return_value = [np.array([[0.1, 2.0]], dtype=np.float32)]
 
     with patch("onnxruntime.InferenceSession", return_value=mock_session) as mock_ort:
-        with patch("cv2.resize", return_value=np.zeros((128, 128, 3), dtype=np.float32), create=True):
+        with patch(
+            "cv2.resize", return_value=np.zeros((128, 128, 3), dtype=np.float32), create=True
+        ):
             # First check loads the model
             checker.check(bgr_frame, sample_bbox)
             assert mock_ort.call_count == 1

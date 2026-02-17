@@ -37,7 +37,7 @@ class TestCameraConfigDefaults:
 
     def test_default_height(self):
         cfg = CameraConfig()
-        assert cfg.height == 480
+        assert cfg.height == 360
 
 
 @pytest.mark.unit
@@ -96,7 +96,7 @@ class TestDaemonConfigDefaults:
 
     def test_default_log_file(self):
         cfg = DaemonConfig()
-        assert cfg.log_file == "/tmp/faceauth.log"
+        assert cfg.log_file == ""
 
 
 @pytest.mark.unit
@@ -499,7 +499,7 @@ ir_device = "/dev/video7"
         assert cfg.camera.rgb_device == "/dev/video0"
         assert cfg.camera.capture_timeout == 10
         assert cfg.camera.width == 640
-        assert cfg.camera.height == 480
+        assert cfg.camera.height == 360
 
     def test_config_zero_and_negative_values(self, tmp_path):
         """Config can handle zero and negative numeric values."""

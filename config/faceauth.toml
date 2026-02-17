@@ -6,7 +6,7 @@ ir_device = "/dev/video2"          # IR camera device
 rgb_device = "/dev/video0"         # RGB camera (for MiniFASNet, Phase 3)
 capture_timeout = 10               # Seconds before giving up
 width = 640
-height = 480
+height = 360
 
 [recognition]
 model = "buffalo_l"                # InsightFace model
@@ -20,8 +20,9 @@ ir_brightness_min = 15.0           # Minimum IR brightness (rejects photos)
 minifasnet_threshold = 0.8         # Liveness score threshold
 require_both = true                # Must pass IR AND MiniFASNet
 ir_only_fallback = true            # Use IR-only if MiniFASNet model not downloaded
+# minifasnet_model_path = ""       # Empty = auto-detect (~/.local/share/faceauth/models/ or /var/lib/faceauth/models/)
 
 [daemon]
 socket_path = "/run/user/{uid}/faceauth.sock"
 log_level = "info"
-log_file = "/tmp/faceauth.log"
+# log_file = ""  # Empty = log to stderr/journal only (default)

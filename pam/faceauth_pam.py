@@ -99,6 +99,7 @@ def pam_sm_authenticate(pamh, flags, argv):
     # Get the uid of the user being authenticated
     try:
         import pwd
+
         pw = pwd.getpwnam(username)
         uid = pw.pw_uid
     except KeyError:

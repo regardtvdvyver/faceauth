@@ -1,9 +1,8 @@
 """Unit tests for faceauth.pam_client module."""
 
-import json
 import socket
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -21,29 +20,37 @@ from faceauth.protocol import Request, Response
 class TestGetSocketPath:
     """Tests for get_socket_path function."""
 
-    def test_returns_correct_path_with_explicit_uid(self):
+    @patch("faceauth.pam_client.SYSTEM_SOCKET")
+    def test_returns_correct_path_with_explicit_uid(self, mock_sys_sock):
         """Test that get_socket_path returns correct path when uid is provided."""
+        mock_sys_sock.exists.return_value = False
         uid = 1000
         expected_path = Path("/run/user/1000/faceauth.sock")
         assert get_socket_path(uid) == expected_path
 
-    def test_returns_correct_path_with_different_uid(self):
+    @patch("faceauth.pam_client.SYSTEM_SOCKET")
+    def test_returns_correct_path_with_different_uid(self, mock_sys_sock):
         """Test with a different uid value."""
+        mock_sys_sock.exists.return_value = False
         uid = 1001
         expected_path = Path("/run/user/1001/faceauth.sock")
         assert get_socket_path(uid) == expected_path
 
     @patch("faceauth.pam_client.os.getuid")
-    def test_returns_path_using_getuid_when_none(self, mock_getuid):
+    @patch("faceauth.pam_client.SYSTEM_SOCKET")
+    def test_returns_path_using_getuid_when_none(self, mock_sys_sock, mock_getuid):
         """Test that get_socket_path uses os.getuid() when uid is None."""
+        mock_sys_sock.exists.return_value = False
         mock_getuid.return_value = 1000
         expected_path = Path("/run/user/1000/faceauth.sock")
         assert get_socket_path(None) == expected_path
         mock_getuid.assert_called_once()
 
     @patch("faceauth.pam_client.os.getuid")
-    def test_default_uid_parameter_uses_getuid(self, mock_getuid):
+    @patch("faceauth.pam_client.SYSTEM_SOCKET")
+    def test_default_uid_parameter_uses_getuid(self, mock_sys_sock, mock_getuid):
         """Test that default uid parameter (no args) uses os.getuid()."""
+        mock_sys_sock.exists.return_value = False
         mock_getuid.return_value = 1234
         expected_path = Path("/run/user/1234/faceauth.sock")
         assert get_socket_path() == expected_path

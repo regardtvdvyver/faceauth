@@ -52,6 +52,7 @@ def create_mock_face(embedding: np.ndarray, det_score: float, bbox: np.ndarray =
 # compute_similarity tests (pure math, no mocking needed)
 # ============================================================================
 
+
 @pytest.mark.unit
 def test_compute_similarity_identical_embeddings(sample_embedding):
     """Test that identical embeddings have similarity = 1.0."""
@@ -108,8 +109,11 @@ def test_compute_similarity_handles_non_normalized_inputs():
 # get_faces tests
 # ============================================================================
 
+
 @pytest.mark.unit
-def test_get_faces_delegates_to_insightface(reset_singleton, mock_insightface, bgr_frame, sample_embedding):
+def test_get_faces_delegates_to_insightface(
+    reset_singleton, mock_insightface, bgr_frame, sample_embedding
+):
     """Test that get_faces delegates to insightface app.get()."""
     mock_if, mock_app_instance = mock_insightface
 
@@ -150,6 +154,7 @@ def test_get_faces_singleton_initialization(reset_singleton, mock_insightface, b
 # get_embedding tests
 # ============================================================================
 
+
 @pytest.mark.unit
 def test_get_embedding_no_faces_detected(reset_singleton, mock_insightface, bgr_frame):
     """Test that get_embedding returns None when no faces are detected."""
@@ -163,7 +168,9 @@ def test_get_embedding_no_faces_detected(reset_singleton, mock_insightface, bgr_
 
 
 @pytest.mark.unit
-def test_get_embedding_best_face_below_threshold(reset_singleton, mock_insightface, bgr_frame, sample_embedding):
+def test_get_embedding_best_face_below_threshold(
+    reset_singleton, mock_insightface, bgr_frame, sample_embedding
+):
     """Test that get_embedding returns None when best face score is below 0.5."""
     mock_if, mock_app_instance = mock_insightface
 
@@ -179,8 +186,14 @@ def test_get_embedding_best_face_below_threshold(reset_singleton, mock_insightfa
 
 
 @pytest.mark.unit
-def test_get_embedding_returns_highest_scoring_face(reset_singleton, mock_insightface, bgr_frame,
-                                                     sample_embedding, similar_embedding, different_embedding):
+def test_get_embedding_returns_highest_scoring_face(
+    reset_singleton,
+    mock_insightface,
+    bgr_frame,
+    sample_embedding,
+    similar_embedding,
+    different_embedding,
+):
     """Test that get_embedding returns the embedding of the highest-scoring face."""
     mock_if, mock_app_instance = mock_insightface
 
@@ -199,7 +212,9 @@ def test_get_embedding_returns_highest_scoring_face(reset_singleton, mock_insigh
 
 
 @pytest.mark.unit
-def test_get_embedding_single_valid_face(reset_singleton, mock_insightface, bgr_frame, sample_embedding):
+def test_get_embedding_single_valid_face(
+    reset_singleton, mock_insightface, bgr_frame, sample_embedding
+):
     """Test that get_embedding returns embedding when single face with score >= 0.5."""
     mock_if, mock_app_instance = mock_insightface
 
@@ -217,18 +232,25 @@ def test_get_embedding_single_valid_face(reset_singleton, mock_insightface, bgr_
 # get_all_embeddings tests
 # ============================================================================
 
+
 @pytest.mark.unit
-def test_get_all_embeddings_returns_only_valid_faces(reset_singleton, mock_insightface, bgr_frame,
-                                                      sample_embedding, similar_embedding, different_embedding):
+def test_get_all_embeddings_returns_only_valid_faces(
+    reset_singleton,
+    mock_insightface,
+    bgr_frame,
+    sample_embedding,
+    similar_embedding,
+    different_embedding,
+):
     """Test that get_all_embeddings returns embeddings only for faces with det_score >= 0.5."""
     mock_if, mock_app_instance = mock_insightface
 
     # Create faces with various detection scores
-    face1 = create_mock_face(sample_embedding, 0.75)     # Valid
-    face2 = create_mock_face(similar_embedding, 0.45)    # Invalid (below threshold)
+    face1 = create_mock_face(sample_embedding, 0.75)  # Valid
+    face2 = create_mock_face(similar_embedding, 0.45)  # Invalid (below threshold)
     face3 = create_mock_face(different_embedding, 0.92)  # Valid
-    face4 = create_mock_face(sample_embedding, 0.50)     # Valid (exactly at threshold)
-    face5 = create_mock_face(similar_embedding, 0.49)    # Invalid (just below threshold)
+    face4 = create_mock_face(sample_embedding, 0.50)  # Valid (exactly at threshold)
+    face5 = create_mock_face(similar_embedding, 0.49)  # Invalid (just below threshold)
 
     mock_app_instance.get.return_value = [face1, face2, face3, face4, face5]
 
@@ -243,7 +265,9 @@ def test_get_all_embeddings_returns_only_valid_faces(reset_singleton, mock_insig
 
 
 @pytest.mark.unit
-def test_get_all_embeddings_no_valid_faces(reset_singleton, mock_insightface, bgr_frame, sample_embedding):
+def test_get_all_embeddings_no_valid_faces(
+    reset_singleton, mock_insightface, bgr_frame, sample_embedding
+):
     """Test that get_all_embeddings returns empty list when no faces meet threshold."""
     mock_if, mock_app_instance = mock_insightface
 
@@ -274,8 +298,11 @@ def test_get_all_embeddings_no_faces_detected(reset_singleton, mock_insightface,
 # verify tests
 # ============================================================================
 
+
 @pytest.mark.unit
-def test_verify_match_found(reset_singleton, mock_insightface, bgr_frame, sample_embedding, similar_embedding):
+def test_verify_match_found(
+    reset_singleton, mock_insightface, bgr_frame, sample_embedding, similar_embedding
+):
     """Test verify returns (True, score) when a match is found."""
     mock_if, mock_app_instance = mock_insightface
 
@@ -292,8 +319,9 @@ def test_verify_match_found(reset_singleton, mock_insightface, bgr_frame, sample
 
 
 @pytest.mark.unit
-def test_verify_no_match_below_threshold(reset_singleton, mock_insightface, bgr_frame,
-                                         sample_embedding, different_embedding):
+def test_verify_no_match_below_threshold(
+    reset_singleton, mock_insightface, bgr_frame, sample_embedding, different_embedding
+):
     """Test verify returns (False, score) when score is below threshold."""
     mock_if, mock_app_instance = mock_insightface
 
@@ -324,8 +352,14 @@ def test_verify_no_face_in_frame(reset_singleton, mock_insightface, bgr_frame, s
 
 
 @pytest.mark.unit
-def test_verify_multiple_stored_embeddings_returns_best_score(reset_singleton, mock_insightface, bgr_frame,
-                                                               sample_embedding, similar_embedding, different_embedding):
+def test_verify_multiple_stored_embeddings_returns_best_score(
+    reset_singleton,
+    mock_insightface,
+    bgr_frame,
+    sample_embedding,
+    similar_embedding,
+    different_embedding,
+):
     """Test verify returns best score when comparing against multiple stored embeddings."""
     mock_if, mock_app_instance = mock_insightface
 
@@ -349,7 +383,9 @@ def test_verify_multiple_stored_embeddings_returns_best_score(reset_singleton, m
 
 
 @pytest.mark.unit
-def test_verify_custom_threshold(reset_singleton, mock_insightface, bgr_frame, sample_embedding, similar_embedding):
+def test_verify_custom_threshold(
+    reset_singleton, mock_insightface, bgr_frame, sample_embedding, similar_embedding
+):
     """Test verify respects custom threshold parameter."""
     mock_if, mock_app_instance = mock_insightface
 
@@ -375,6 +411,7 @@ def test_verify_custom_threshold(reset_singleton, mock_insightface, bgr_frame, s
 # Singleton behavior tests
 # ============================================================================
 
+
 @pytest.mark.unit
 def test_ensure_loaded_only_calls_get_app_once(reset_singleton, mock_insightface, bgr_frame):
     """Test that _ensure_loaded only initializes the app once (singleton pattern)."""
@@ -396,7 +433,9 @@ def test_ensure_loaded_only_calls_get_app_once(reset_singleton, mock_insightface
 
 
 @pytest.mark.unit
-def test_multiple_recognizer_instances_share_singleton(reset_singleton, mock_insightface, bgr_frame):
+def test_multiple_recognizer_instances_share_singleton(
+    reset_singleton, mock_insightface, bgr_frame
+):
     """Test that multiple FaceRecognizer instances share the same underlying app."""
     mock_if, mock_app_instance = mock_insightface
     mock_app_instance.get.return_value = []
@@ -413,7 +452,9 @@ def test_multiple_recognizer_instances_share_singleton(reset_singleton, mock_ins
 
 
 @pytest.mark.unit
-def test_recognizer_with_different_params_uses_same_singleton(reset_singleton, mock_insightface, bgr_frame):
+def test_recognizer_with_different_params_uses_same_singleton(
+    reset_singleton, mock_insightface, bgr_frame
+):
     """Test that recognizer instances with different params still share singleton (first wins)."""
     mock_if, mock_app_instance = mock_insightface
     mock_app_instance.get.return_value = []

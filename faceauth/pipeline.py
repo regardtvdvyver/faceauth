@@ -101,9 +101,7 @@ def check_antispoof(
     return antispoof.check(raw_ir, bgr_frame, bbox)
 
 
-def match_embedding(
-    embedding: np.ndarray, stored: list[np.ndarray]
-) -> float:
+def match_embedding(embedding: np.ndarray, stored: list[np.ndarray]) -> float:
     """Compare a live embedding against stored embeddings.
 
     Args:

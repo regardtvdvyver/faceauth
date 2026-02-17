@@ -2,11 +2,16 @@
 
 import logging
 import os
+import re
 from pathlib import Path
 
 import numpy as np
 
 log = logging.getLogger(__name__)
+
+# Valid Linux username: starts with lowercase letter or underscore,
+# followed by lowercase alphanumeric, underscore, or hyphen. Max 32 chars.
+_USERNAME_RE = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 
 
 class EmbeddingStore:
@@ -31,9 +36,14 @@ class EmbeddingStore:
         self.data_dir.chmod(0o700)
 
     def _user_path(self, username: str) -> Path:
-        # Sanitize username to prevent path traversal
-        safe = username.replace("/", "_").replace("..", "_").replace("\0", "")
-        return self.data_dir / f"{safe}.npz"
+        """Get the storage path for a username, with validation."""
+        if not _USERNAME_RE.match(username):
+            raise ValueError(f"Invalid username: {username!r}")
+        path = self.data_dir / f"{username}.npz"
+        # Defense in depth: verify the resolved path is within data_dir
+        if not path.resolve().is_relative_to(self.data_dir.resolve()):
+            raise ValueError(f"Path traversal detected for username: {username!r}")
+        return path
 
     def save(self, username: str, embeddings: list[np.ndarray]) -> Path:
         """Save embeddings for a user. Overwrites existing."""
