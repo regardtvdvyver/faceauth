@@ -57,6 +57,14 @@ faceauth = "cli.faceauth_cli:cli"
 [tool.setuptools.packages.find]
 include = ["faceauth*", "cli*"]
 
+[tool.setuptools.package-data]
+"*" = ["*.service", "*.toml"]
+
+[tool.setuptools.data-files]
+"share/faceauth/systemd" = ["systemd/faceauth.service", "systemd/faceauth-system.service"]
+"share/faceauth/pam" = ["pam/faceauth-pam-helper", "pam/pam-configs-faceauth"]
+"share/faceauth/config" = ["config/faceauth.toml"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
