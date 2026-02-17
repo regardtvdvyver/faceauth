@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+"""pam_exec helper for faceauth.
+
+This script is called by pam_exec.so during PAM authentication.
+It connects to the faceauth system daemon and requests face verification.
+
+Environment variables set by pam_exec:
+    PAM_USER  - Username being authenticated
+    PAM_TYPE  - PAM phase (auth, account, session, password)
+
+Exit codes:
+    0 - Authenticated successfully
+    1 - Authentication failed or error
+
+This script is intentionally self-contained (stdlib only) to avoid
+depending on any virtualenv or installed packages.
+"""
+
+import json
+import os
+import socket
+import sys
+import syslog
+
+# System daemon socket (not per-user)
+SYSTEM_SOCKET = "/run/faceauth/faceauth.sock"
+# Fallback to per-user socket
+USER_SOCKET_TEMPLATE = "/run/user/{uid}/faceauth.sock"
+
+TIMEOUT = 10  # seconds
+
+
+def log(priority, msg):
+    syslog.syslog(priority, f"faceauth-pam: {msg}")
+
+
+def get_socket_path():
+    """Try system socket first, then per-user socket."""
+    if os.path.exists(SYSTEM_SOCKET):
+        return SYSTEM_SOCKET
+    # Fall back to per-user socket for the target user
+    uid = os.getuid()
+    user_sock = USER_SOCKET_TEMPLATE.format(uid=uid)
+    if os.path.exists(user_sock):
+        return user_sock
+    return None
+
+
+def verify_face(username, sock_path):
+    """Send verify request to daemon. Returns (success, score, error)."""
+    request = json.dumps({"action": "verify", "username": username}) + "\n"
+
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock.settimeout(TIMEOUT)
+
+    try:
+        sock.connect(sock_path)
+        sock.sendall(request.encode())
+
+        chunks = []
+        while True:
+            chunk = sock.recv(4096)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            if b"\n" in chunk:
+                break
+
+        data = b"".join(chunks)
+        if not data:
+            return False, 0.0, "empty response"
+
+        resp = json.loads(data.strip())
+        return resp.get("ok", False), resp.get("score", 0.0), resp.get("error", "")
+
+    except socket.timeout:
+        return False, 0.0, f"timeout after {TIMEOUT}s"
+    except ConnectionRefusedError:
+        return False, 0.0, "daemon not running"
+    except Exception as e:
+        return False, 0.0, str(e)
+    finally:
+        sock.close()
+
+
+def main():
+    username = os.environ.get("PAM_USER", "")
+    pam_type = os.environ.get("PAM_TYPE", "")
+
+    if pam_type != "auth":
+        sys.exit(0)
+
+    if not username:
+        log(syslog.LOG_ERR, "PAM_USER not set")
+        sys.exit(1)
+
+    sock_path = get_socket_path()
+    if sock_path is None:
+        log(syslog.LOG_INFO, "no daemon socket found, skipping face auth")
+        sys.exit(1)
+
+    log(syslog.LOG_INFO, f"attempting face auth for '{username}' via {sock_path}")
+
+    ok, score, error = verify_face(username, sock_path)
+
+    if ok:
+        log(syslog.LOG_INFO, f"face auth SUCCESS for '{username}' (score={score:.3f})")
+        sys.exit(0)
+    else:
+        reason = error if error else f"score={score:.3f}"
+        log(syslog.LOG_INFO, f"face auth FAIL for '{username}': {reason}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

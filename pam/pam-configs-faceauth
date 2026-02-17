@@ -1,0 +1,6 @@
+Name: Face authentication (faceauth)
+Default: no
+Priority: 258
+Auth-Type: Primary
+Auth:
+	[success=end default=ignore]	pam_exec.so quiet /usr/local/lib/faceauth/faceauth-pam-helper

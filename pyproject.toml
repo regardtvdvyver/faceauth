@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "faceauth"
+version = "0.1.0"
+description = "Modern Linux face authentication using IR camera and ArcFace"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    {name = "Regardt van de Vyver", email = "regardt@vdvyver.net"},
+]
+keywords = ["face-recognition", "pam", "authentication", "linux", "biometric", "arcface", "anti-spoofing"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: System Administrators",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: System :: Systems Administration :: Authentication/Directory",
+]
+dependencies = [
+    "insightface>=0.7.3",
+    "onnxruntime>=1.17.0",
+    "mediapipe>=0.10.9",
+    "opencv-contrib-python>=4.9.0",
+    "numpy>=1.26.0",
+    "click>=8.1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/regardtvdvyver/faceauth"
+Repository = "https://github.com/regardtvdvyver/faceauth"
+Issues = "https://github.com/regardtvdvyver/faceauth/issues"
+Changelog = "https://github.com/regardtvdvyver/faceauth/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov",
+    "pytest-mock",
+    "ruff",
+]
+openvino = [
+    "openvino",
+    "onnxruntime-openvino",
+]
+
+[project.scripts]
+faceauth = "cli.faceauth_cli:cli"
+
+[tool.setuptools.packages.find]
+include = ["faceauth*", "cli*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "unit: unit tests (no external dependencies)",
+    "integration: integration tests (async, socket-based)",
+]

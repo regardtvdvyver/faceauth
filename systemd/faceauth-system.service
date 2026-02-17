@@ -1,0 +1,46 @@
+[Unit]
+Description=faceauth system-level face authentication daemon
+Documentation=https://github.com/regardtvdvyver/faceauth
+Before=display-manager.service
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=FACEAUTH_PYTHON -m faceauth --system
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+# Directories managed by systemd
+RuntimeDirectory=faceauth
+StateDirectory=faceauth
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/faceauth
+ReadWritePaths=/run/faceauth
+PrivateTmp=true
+# onnxruntime needs JIT
+MemoryDenyWriteExecute=false
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+
+# Camera + GPU access
+SupplementaryGroups=video render
+DeviceAllow=/dev/video0 rw
+DeviceAllow=/dev/video2 rw
+DeviceAllow=/dev/dri/renderD128 rw
+
+[Install]
+WantedBy=multi-user.target
