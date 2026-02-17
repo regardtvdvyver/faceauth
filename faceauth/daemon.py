@@ -15,6 +15,7 @@ from pathlib import Path
 
 import numpy as np
 
+from .audit import AuditEvent, get_audit_logger
 from .antispoof import AntispoofChecker
 from .camera import Camera
 from .config import Config, load_config
@@ -122,7 +123,7 @@ class FaceAuthDaemon:
 
             writer.write(resp.to_json())
             await writer.drain()
-            log.info("Response: ok=%s score=%.3f", resp.ok, resp.score)
+            log.debug("Response: ok=%s score=%.3f", resp.ok, resp.score)
 
         except asyncio.TimeoutError:
             log.warning("Client timed out")
@@ -184,12 +185,15 @@ class FaceAuthDaemon:
 
     async def _handle_verify(self, req: Request) -> Response:
         """Verify a face against stored embeddings."""
+        audit = get_audit_logger()
         if not req.username:
             return Response(ok=False, error="username required")
 
         stored = self.store.load(req.username)
         if not stored:
             return Response(ok=False, error=f"User '{req.username}' not enrolled")
+
+        audit.log_event(AuditEvent.AUTH_ATTEMPT, username=req.username)
 
         self._ensure_models()
         # Server-side security policy: always use configured values
@@ -200,6 +204,11 @@ class FaceAuthDaemon:
             match, score = await asyncio.get_event_loop().run_in_executor(
                 None, self._verify_sync, device, stored, threshold
             )
+
+        if match:
+            audit.log_event(AuditEvent.AUTH_SUCCESS, username=req.username)
+        else:
+            audit.log_event(AuditEvent.AUTH_FAIL, username=req.username, result=False)
 
         return Response(ok=match, score=score)
 
@@ -229,6 +238,11 @@ class FaceAuthDaemon:
                 spoof_result = check_antispoof(self.antispoof, raw_ir, bgr_frame, best.bbox)
                 if spoof_result is not None and not spoof_result.passed:
                     log.warning("Spoof rejected: %s", spoof_result.reason)
+                    get_audit_logger().log_event(
+                        AuditEvent.SPOOF_DETECTED,
+                        result=False,
+                        details={"reason": spoof_result.reason},
+                    )
                     return False, 0.0
 
                 best_score = match_embedding(best.embedding, stored)
@@ -257,6 +271,11 @@ class FaceAuthDaemon:
             return Response(ok=False, error="No faces captured")
 
         self.store.save(req.username, embeddings)
+        get_audit_logger().log_event(
+            AuditEvent.ENROLL,
+            username=req.username,
+            details={"samples": len(embeddings)},
+        )
         return Response(
             ok=True,
             data={
@@ -305,6 +324,7 @@ class FaceAuthDaemon:
             return Response(ok=False, error="username required")
         deleted = self.store.delete(req.username)
         if deleted:
+            get_audit_logger().log_event(AuditEvent.DELETE, username=req.username)
             return Response(ok=True)
         return Response(ok=False, error=f"User '{req.username}' not enrolled")
 
@@ -355,6 +375,9 @@ class FaceAuthDaemon:
         os.chmod(sock, 0o666 if self.config.daemon.system_mode else 0o600)
 
         log.info("Daemon listening on %s (pid=%d)", sock, os.getpid())
+        get_audit_logger().log_event(
+            AuditEvent.DAEMON_START, details={"pid": os.getpid(), "socket": str(sock)}
+        )
 
         # Pre-load models in background
         asyncio.get_event_loop().run_in_executor(None, self._ensure_models)
@@ -364,6 +387,7 @@ class FaceAuthDaemon:
         if self._server:
             self._server.close()
             await self._server.wait_closed()
+            get_audit_logger().log_event(AuditEvent.DAEMON_STOP)
             log.info("Server stopped")
 
         if self._socket_path and self._socket_path.exists():

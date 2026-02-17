@@ -623,6 +623,169 @@ def setup_models(ctx):
     click.echo("Setup complete.")
 
 
+@cli.command()
+@click.option("--username", default=None, help="Username to enroll (default: current user)")
+@click.option("--system", is_flag=True, help="Install system-wide (requires root)")
+@click.option("--skip-enroll", is_flag=True, help="Skip face enrollment")
+@click.option("--skip-pam", is_flag=True, help="Skip PAM installation")
+@click.pass_context
+def setup(ctx, username, system, skip_enroll, skip_pam):
+    """Interactive setup wizard -- detect camera, configure, enroll, and install.
+
+    One command to go from zero to working face authentication.
+    """
+    import getpass
+    import subprocess
+
+    from faceauth.hardware import detect_cameras
+
+    click.echo()
+    click.echo("=== faceauth setup ===")
+    click.echo()
+
+    # Step 1: Detect cameras
+    click.echo("[1/5] Detecting cameras...")
+    result = detect_cameras()
+
+    if not result.has_ir and not result.has_rgb:
+        click.echo("  No cameras detected!", err=True)
+        click.echo("  Check that your camera is connected and you have permission to access it.")
+        click.echo("  Try: sudo usermod -aG video $USER  (then log out and back in)")
+        sys.exit(1)
+
+    ir_cam = result.best_ir
+    rgb_cam = result.best_rgb
+
+    if ir_cam:
+        ir_res = ir_cam.best_resolution
+        click.echo(f"  IR camera:  {ir_cam.path} ({ir_cam.card}, {ir_res})")
+    else:
+        click.echo("  IR camera:  not found")
+        click.echo("  WARNING: Without an IR camera, anti-spoofing is disabled.")
+        click.echo("  Face auth will work but is vulnerable to photo attacks.")
+        if not click.confirm("  Continue with RGB-only?", default=True):
+            sys.exit(0)
+
+    if rgb_cam:
+        rgb_res = rgb_cam.best_resolution
+        click.echo(f"  RGB camera: {rgb_cam.path} ({rgb_cam.card}, {rgb_res})")
+
+    click.echo()
+
+    # Step 2: Write configuration
+    click.echo("[2/5] Writing configuration...")
+    cfg = ctx.obj["config"]
+    config_dir = cfg.config_dir
+    config_path = config_dir / "config.toml"
+
+    if ir_cam:
+        ir_res = ir_cam.best_resolution
+        ir_device = ir_cam.path
+        ir_width = ir_res.width if ir_res else 640
+        ir_height = ir_res.height if ir_res else 360
+    else:
+        # Fallback to RGB camera for face auth without anti-spoof
+        ir_device = rgb_cam.path if rgb_cam else "/dev/video0"
+        ir_width = 640
+        ir_height = 480
+
+    rgb_device = rgb_cam.path if rgb_cam else ""
+    antispoof_enabled = ir_cam is not None
+
+    config_content = f"""[camera]
+ir_device = "{ir_device}"
+rgb_device = "{rgb_device}"
+width = {ir_width}
+height = {ir_height}
+
+[recognition]
+model = "buffalo_l"
+similarity_threshold = 0.45
+
+[antispoof]
+enabled = {str(antispoof_enabled).lower()}
+ir_brightness_min = 15.0
+ir_only_fallback = true
+
+[daemon]
+log_level = "info"
+"""
+
+    if config_path.exists():
+        if not click.confirm(f"  Config exists at {config_path}. Overwrite?", default=False):
+            click.echo("  Keeping existing config.")
+        else:
+            config_dir.mkdir(parents=True, exist_ok=True)
+            config_path.write_text(config_content)
+            click.echo(f"  Written: {config_path}")
+    else:
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(config_content)
+        click.echo(f"  Written: {config_path}")
+
+    # Reload config from the file we just wrote
+    from faceauth.config import load_config
+
+    cfg = load_config(config_path)
+    ctx.obj["config"] = cfg
+
+    click.echo()
+
+    # Step 3: Enroll face
+    if skip_enroll:
+        click.echo("[3/5] Skipping enrollment (--skip-enroll)")
+    else:
+        enroll_user = username or getpass.getuser()
+        click.echo(f"[3/5] Enrolling face for '{enroll_user}'...")
+        click.echo("  Look at the camera. Capturing 5 samples...")
+        click.echo()
+        # Invoke the existing enroll command
+        ctx.invoke(enroll, username=enroll_user, samples=5, camera_device=None)
+        click.echo()
+
+    click.echo()
+
+    # Step 4: Install systemd service
+    click.echo("[4/5] Installing systemd service...")
+    if system:
+        if os.geteuid() != 0:
+            click.echo("  System install requires root. Skipping.")
+            click.echo("  Run: sudo faceauth setup --system")
+        else:
+            ctx.invoke(daemon_install, system=True)
+            click.echo("  Starting daemon...")
+            subprocess.run(["systemctl", "start", "faceauth"], check=False)
+    else:
+        ctx.invoke(daemon_install, system=False)
+        click.echo("  Starting daemon...")
+        subprocess.run(["systemctl", "--user", "start", "faceauth"], check=False)
+
+    click.echo()
+
+    # Step 5: PAM installation
+    if skip_pam:
+        click.echo("[5/5] Skipping PAM installation (--skip-pam)")
+    elif os.geteuid() != 0:
+        click.echo("[5/5] PAM installation (requires root -- skipping)")
+        click.echo("  To enable face auth for sudo/GDM, run:")
+        click.echo("    sudo faceauth install-pam")
+        click.echo("    sudo pam-auth-update")
+    else:
+        if click.confirm("[5/5] Install PAM module for sudo/GDM?", default=True):
+            ctx.invoke(install_pam)
+            click.echo()
+            click.echo("  Run 'sudo pam-auth-update' to enable face authentication.")
+
+    click.echo()
+    click.echo("=== Setup complete! ===")
+    click.echo()
+    click.echo("Test it:")
+    click.echo("  faceauth verify " + (username or getpass.getuser()))
+    click.echo("  faceauth status")
+    if os.geteuid() == 0 and not skip_pam:
+        click.echo("  sudo -k whoami    # test with sudo")
+
+
 @cli.command(name="migrate-to-system")
 @click.option("--force", is_flag=True, help="Overwrite existing system embeddings")
 def migrate_to_system(force):
